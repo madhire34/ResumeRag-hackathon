@@ -1,0 +1,49 @@
+{
+  "name": "resumerag-backend",
+  "version": "1.0.0",
+  "description": "Advanced ResumeRAG Backend for Hackathon",
+  "main": "src/server.js",
+  "type": "module",
+  "scripts": {
+    "start": "node src/server.js",
+    "dev": "nodemon src/server.js",
+    "test": "jest",
+    "seed": "node src/utils/seedData.js",
+    "quick-seed": "node src/utils/quickSeed.js"
+  },
+  "dependencies": {
+    "adm-zip": "^0.5.16",
+    "axios": "^1.12.2",
+    "bcryptjs": "^2.4.3",
+    "compression": "^1.7.4",
+    "cors": "^2.8.5",
+    "crypto": "^1.0.1",
+    "dotenv": "^16.3.1",
+    "express": "^4.18.2",
+    "express-rate-limit": "^7.1.5",
+    "express-validator": "^7.0.1",
+    "helmet": "^7.1.0",
+    "joi": "^17.11.0",
+    "jsonwebtoken": "^9.0.2",
+    "mongoose": "^8.0.0",
+    "morgan": "^1.10.0",
+    "multer": "^2.0.2",
+    "nodemailer": "^6.9.7",
+    "openai": "^6.1.0",
+    "pdf-parse": "^2.1.7"
+  },
+  "devDependencies": {
+    "jest": "^29.7.0",
+    "nodemon": "^3.0.2",
+    "supertest": "^6.3.3"
+  },
+  "keywords": [
+    "resume",
+    "rag",
+    "ai",
+    "job-matching",
+    "hackathon"
+  ],
+  "author": "Mahan",
+  "license": "MIT"
+}
