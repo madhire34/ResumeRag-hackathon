@@ -43,6 +43,14 @@ const allowedOrigins = process.env.NODE_ENV === 'production'
   ? [process.env.FRONTEND_URL].filter(Boolean)
   : ['http://localhost:3000', 'http://localhost:5173'];
 
+// Add default production frontend if FRONTEND_URL is not set
+if (process.env.NODE_ENV === 'production' && allowedOrigins.length === 0) {
+  allowedOrigins.push('https://resume-rag-hackathon.vercel.app');
+}
+
+console.log('🌐 CORS allowed origins:', allowedOrigins);
+console.log('🌍 Environment:', process.env.NODE_ENV);
+
 app.use(cors({
   origin: allowedOrigins,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
