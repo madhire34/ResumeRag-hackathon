@@ -215,7 +215,23 @@ app.use((error, req, res, next) => {
 });
 
 // Connect to MongoDB
-mongoose.connect(process.env.MONGODB_URI, {
+const MONGODB_URI = process.env.MONGODB_URI;
+
+// Validate MongoDB URI
+if (!MONGODB_URI) {
+  console.error('❌ MONGODB_URI environment variable is not set');
+  console.error('Available environment variables:', Object.keys(process.env).filter(key => !key.includes('SECRET') && !key.includes('KEY')));
+  process.exit(1);
+}
+
+if (!MONGODB_URI.startsWith('mongodb://') && !MONGODB_URI.startsWith('mongodb+srv://')) {
+  console.error('❌ Invalid MONGODB_URI format. Must start with mongodb:// or mongodb+srv://');
+  console.error('Current value:', MONGODB_URI.substring(0, 20) + '...');
+  process.exit(1);
+}
+
+console.log('🔌 Connecting to MongoDB...');
+mongoose.connect(MONGODB_URI, {
   maxPoolSize: 10,
   serverSelectionTimeoutMS: 5000,
   socketTimeoutMS: 45000,
