@@ -51,8 +51,25 @@ if (process.env.NODE_ENV === 'production' && allowedOrigins.length === 0) {
 console.log('🌐 CORS allowed origins:', allowedOrigins);
 console.log('🌍 Environment:', process.env.NODE_ENV);
 
+// CORS middleware with dynamic origin checking for Vercel preview deployments
 app.use(cors({
-  origin: allowedOrigins,
+  origin: (origin, callback) => {
+    // Allow requests with no origin (like mobile apps or curl)
+    if (!origin) return callback(null, true);
+    
+    // Check if origin is in allowed list
+    if (allowedOrigins.includes(origin)) {
+      return callback(null, true);
+    }
+    
+    // Allow all Vercel preview deployments
+    if (origin.includes('vercel.app')) {
+      return callback(null, true);
+    }
+    
+    // Reject other origins
+    callback(new Error('Not allowed by CORS'));
+  },
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization', 'Idempotency-Key'],
   credentials: true
