@@ -100,8 +100,9 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         
         // Verify token with server
         try {
-          const response = await authAPI.getProfile();
-          dispatch({ type: 'UPDATE_USER', payload: response.data });
+          const freshUser = await authAPI.getProfile();
+          localStorage.setItem('user', JSON.stringify(freshUser));
+          dispatch({ type: 'UPDATE_USER', payload: freshUser });
         } catch (error) {
           // Token invalid, clear storage
           localStorage.removeItem('authToken');
@@ -176,8 +177,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
   const updateUser = async (userData: Partial<User>): Promise<void> => {
     try {
-      const response = await authAPI.updateProfile(userData);
-      const updatedUser = response.data;
+      const updatedUser = await authAPI.updateProfile(userData);
       
       // Update localStorage
       localStorage.setItem('user', JSON.stringify(updatedUser));

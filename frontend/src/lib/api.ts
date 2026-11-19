@@ -87,14 +87,14 @@ export const authAPI = {
     return response.data;
   },
 
-  getProfile: async (): Promise<APIResponse<User>> => {
-    const response = await api.get<APIResponse<User>>('/auth/profile');
-    return response.data;
+  getProfile: async (): Promise<User> => {
+    const response = await api.get<APIResponse<{ user: User }>>('/auth/profile');
+    return response.data.data.user;
   },
 
-  updateProfile: async (userData: Partial<User>): Promise<APIResponse<User>> => {
-    const response = await api.put<APIResponse<User>>('/auth/profile', userData);
-    return response.data;
+  updateProfile: async (userData: Partial<User>): Promise<User> => {
+    const response = await api.put<APIResponse<{ user: User }>>('/auth/profile', userData);
+    return response.data.data.user;
   },
 };
 
