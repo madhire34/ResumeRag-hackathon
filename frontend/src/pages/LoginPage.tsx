@@ -37,7 +37,27 @@ const LoginPage: React.FC = () => {
       await login(data.email, data.password);
       navigate('/dashboard');
     } catch (err: any) {
-      setError(err.message || 'Login failed');
+      const message = err?.message || 'Login failed';
+      setError(
+        /timeout/i.test(message)
+          ? 'The demo server is waking up from sleep. Give it 30 seconds and try again.'
+          : message
+      );
+    }
+  };
+
+  const useDemoAccount = async () => {
+    setError('');
+    try {
+      await login('recruiter@resumerag.com', 'test123');
+      navigate('/dashboard');
+    } catch (err: any) {
+      const message = err?.message || 'Login failed';
+      setError(
+        /timeout/i.test(message)
+          ? 'The demo server is waking up from sleep. Give it 30 seconds and try again.'
+          : message
+      );
     }
   };
 
@@ -137,6 +157,26 @@ const LoginPage: React.FC = () => {
                 Sign up
               </Link>
             </p>
+          </div>
+
+          {/* Reviewers: one click into a seeded demo account */}
+          <div className="rounded-lg border border-primary-200 dark:border-primary-800 bg-primary-50 dark:bg-primary-900/20 p-4">
+            <p className="text-sm font-medium text-gray-900 dark:text-white">
+              Reviewing this project?
+            </p>
+            <p className="mt-1 text-xs text-gray-600 dark:text-gray-400">
+              The demo account is already loaded with six sample candidates and three open jobs.
+              Credentials: <span className="font-mono">recruiter@resumerag.com</span> /{' '}
+              <span className="font-mono">test123</span>
+            </p>
+            <button
+              type="button"
+              onClick={useDemoAccount}
+              disabled={isLoading}
+              className="mt-3 w-full inline-flex justify-center items-center py-2 px-3 border border-primary-600 text-sm font-medium rounded-md text-primary-700 dark:text-primary-300 bg-white dark:bg-gray-800 hover:bg-primary-100 dark:hover:bg-primary-900/40 disabled:opacity-50 transition-colors duration-150"
+            >
+              Enter the demo as a recruiter
+            </button>
           </div>
         </form>
 

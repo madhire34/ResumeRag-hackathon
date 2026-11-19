@@ -341,6 +341,14 @@ const server = app.listen(PORT, () => {
 startDatabase()
 .then(async () => {
   await seedDemoUsers();
+  if (process.env.SEED_DEMO_CONTENT !== 'false') {
+    try {
+      const { seedDemoContent } = await import('./utils/demoContent.js');
+      await seedDemoContent();
+    } catch (err) {
+      console.error('⚠️  Demo content seeding failed:', err.message);
+    }
+  }
   console.log('✅ Database ready');
 })
 .catch(err => {

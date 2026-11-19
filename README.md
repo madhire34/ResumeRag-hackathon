@@ -95,11 +95,15 @@ Visit http://localhost:3000
 
 ## Test Credentials
 
+The backend seeds these accounts on boot. In demo mode it also seeds six sample candidates and three open jobs, so the dashboard has something to show on first login (set `SEED_DEMO_CONTENT=false` to skip that).
+
 | Role | Email | Password |
 |------|-------|----------|
 | Admin | admin@resumerag.com | admin123 |
 | Recruiter | recruiter@resumerag.com | test123 |
 | Candidate | candidate@resumerag.com | test123 |
+
+The login page has a one-click "Enter the demo as a recruiter" button, and the demo data is regenerated automatically if the database is empty.
 
 ## API Endpoints
 
