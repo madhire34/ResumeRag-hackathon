@@ -175,6 +175,11 @@ app.get('/api/docs', (req, res) => {
         email: 'admin@resumerag.com',
         password: 'admin123',
         role: 'admin'
+      },
+      demoAdmin: {
+        email: 'admin@mail.com',
+        password: 'admin123',
+        role: 'admin'
       }
     },
     requirements: {
@@ -256,17 +261,21 @@ async function seedDemoUsers() {
   if (process.env.SEED_DEMO_USERS === 'false') return;
   try {
     const { default: User } = await import('./models/User.js');
-    if (await User.countDocuments() > 0) return;
 
     const demoUsers = [
+      // The deployed login page pre-fills admin@mail.com, so keep it seeded.
+      { name: 'Admin User', email: 'admin@mail.com', password: 'admin123', role: 'admin' },
       { name: 'Admin User', email: 'admin@resumerag.com', password: 'admin123', role: 'admin' },
       { name: 'Sarah Mitchell', email: 'recruiter@resumerag.com', password: 'test123', role: 'recruiter', company: 'TechCorp Inc.', phone: '+1-555-0123' },
       { name: 'John Candidate', email: 'candidate@resumerag.com', password: 'test123', role: 'candidate' },
     ];
     for (const user of demoUsers) {
-      await User.create({ ...user, isActive: true, emailVerified: true });
+      const exists = await User.findOne({ email: user.email });
+      if (!exists) {
+        await User.create({ ...user, isActive: true, emailVerified: true });
+      }
     }
-    console.log('🌱 Seeded demo users (admin@resumerag.com / admin123, recruiter@resumerag.com / test123, candidate@resumerag.com / test123)');
+    console.log('🌱 Demo users ready (admin@mail.com / admin123, admin@resumerag.com / admin123, recruiter@resumerag.com / test123, candidate@resumerag.com / test123)');
   } catch (err) {
     console.error('⚠️  Demo user seeding failed:', err.message);
   }
