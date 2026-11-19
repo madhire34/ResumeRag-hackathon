@@ -296,9 +296,11 @@ async function startDatabase() {
   // the API still works; data is intentionally ephemeral.
   console.warn('⚠️  Starting embedded MongoDB (data resets whenever the service restarts)');
   const { MongoMemoryServer } = await import('mongodb-memory-server');
+  // Render runs Debian 12, where MongoDB only ships binaries from 7.0.3 on;
+  // 7.0 also dropped the ephemeralForTest engine, so use the default engine.
   embeddedMongoServer = await MongoMemoryServer.create({
-    binary: { version: process.env.EMBEDDED_MONGO_VERSION || '6.0.14' },
-    instance: { dbName: 'resumerag', storageEngine: 'ephemeralForTest' }
+    binary: { version: process.env.EMBEDDED_MONGO_VERSION || '7.0.14' },
+    instance: { dbName: 'resumerag' }
   });
   const embeddedUri = embeddedMongoServer.getUri('resumerag');
   await mongoose.connect(embeddedUri, {
@@ -308,32 +310,35 @@ async function startDatabase() {
   console.log('✅ Connected to embedded MongoDB');
 }
 
+// Bind the port right away: Render fails a deploy when no port opens in time,
+// and downloading the embedded MongoDB binary can take a while on a cold start.
+const server = app.listen(PORT, () => {
+  console.log(`🚀 Server running on port ${PORT}`);
+  console.log(`🌍 Environment: ${process.env.NODE_ENV || 'development'}`);
+  console.log(`📖 API Documentation: http://localhost:${PORT}/api/docs`);
+  console.log(`❤️  Health Check: http://localhost:${PORT}/health`);
+});
+
 startDatabase()
 .then(async () => {
   await seedDemoUsers();
-
-  const server = app.listen(PORT, () => {
-    console.log(`🚀 Server running on port ${PORT}`);
-    console.log(`🌍 Environment: ${process.env.NODE_ENV || 'development'}`);
-    console.log(`📖 API Documentation: http://localhost:${PORT}/api/docs`);
-    console.log(`❤️  Health Check: http://localhost:${PORT}/health`);
-  });
-
-  // Graceful shutdown
-  const shutdown = () => {
-    console.log('Shutting down gracefully');
-    server.close(async () => {
-      await mongoose.connection.close();
-      if (embeddedMongoServer) await embeddedMongoServer.stop();
-      process.exit(0);
-    });
-  };
-  process.on('SIGTERM', shutdown);
-  process.on('SIGINT', shutdown);
+  console.log('✅ Database ready');
 })
 .catch(err => {
   console.error('❌ Startup failed:', err);
   process.exit(1);
 });
+
+// Graceful shutdown
+const shutdown = () => {
+  console.log('Shutting down gracefully');
+  server.close(async () => {
+    await mongoose.connection.close();
+    if (embeddedMongoServer) await embeddedMongoServer.stop();
+    process.exit(0);
+  });
+};
+process.on('SIGTERM', shutdown);
+process.on('SIGINT', shutdown);
 
 export default app;
