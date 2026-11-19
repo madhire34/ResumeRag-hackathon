@@ -6,6 +6,7 @@ import compression from 'compression';
 import morgan from 'morgan';
 import dotenv from 'dotenv';
 import path from 'path';
+import crypto from 'crypto';
 import { fileURLToPath } from 'url';
 
 // Import middleware
@@ -22,6 +23,14 @@ import { errorResponse } from './utils/apiResponse.js';
 
 // Load environment variables
 dotenv.config();
+
+// A missing JWT secret would make every login crash with
+// "secretOrPrivateKey must have a value". Generate an ephemeral one so the
+// app still works; tokens simply stop being valid after a restart.
+if (!process.env.JWT_SECRET) {
+  process.env.JWT_SECRET = crypto.randomBytes(32).toString('hex');
+  console.warn('⚠️  JWT_SECRET is not set - generated an ephemeral secret (logins reset on restart)');
+}
 
 const app = express();
 const PORT = process.env.PORT || 8000;
@@ -241,30 +250,68 @@ app.use((error, req, res, next) => {
 
 // Connect to MongoDB
 const MONGODB_URI = process.env.MONGODB_URI;
+let embeddedMongoServer = null;
 
-// Validate MongoDB URI
-if (!MONGODB_URI) {
-  console.error('❌ MONGODB_URI environment variable is not set');
-  console.error('Available environment variables:', Object.keys(process.env).filter(key => !key.includes('SECRET') && !key.includes('KEY')));
-  process.exit(1);
+async function seedDemoUsers() {
+  if (process.env.SEED_DEMO_USERS === 'false') return;
+  try {
+    const { default: User } = await import('./models/User.js');
+    if (await User.countDocuments() > 0) return;
+
+    const demoUsers = [
+      { name: 'Admin User', email: 'admin@resumerag.com', password: 'admin123', role: 'admin' },
+      { name: 'Sarah Mitchell', email: 'recruiter@resumerag.com', password: 'test123', role: 'recruiter', company: 'TechCorp Inc.', phone: '+1-555-0123' },
+      { name: 'John Candidate', email: 'candidate@resumerag.com', password: 'test123', role: 'candidate' },
+    ];
+    for (const user of demoUsers) {
+      await User.create({ ...user, isActive: true, emailVerified: true });
+    }
+    console.log('🌱 Seeded demo users (admin@resumerag.com / admin123, recruiter@resumerag.com / test123, candidate@resumerag.com / test123)');
+  } catch (err) {
+    console.error('⚠️  Demo user seeding failed:', err.message);
+  }
 }
 
-if (!MONGODB_URI.startsWith('mongodb://') && !MONGODB_URI.startsWith('mongodb+srv://')) {
-  console.error('❌ Invalid MONGODB_URI format. Must start with mongodb:// or mongodb+srv://');
-  console.error('Current value:', MONGODB_URI.substring(0, 20) + '...');
-  process.exit(1);
+async function startDatabase() {
+  if (MONGODB_URI) {
+    try {
+      console.log('🔌 Connecting to MongoDB...');
+      await mongoose.connect(MONGODB_URI, {
+        maxPoolSize: 10,
+        serverSelectionTimeoutMS: 5000,
+        socketTimeoutMS: 45000,
+      });
+      console.log('✅ Connected to MongoDB');
+      return;
+    } catch (err) {
+      console.error('❌ MongoDB connection error:', err.message);
+      if (process.env.ALLOW_EMBEDDED_DB === 'false') throw err;
+    }
+  } else {
+    console.warn('⚠️  MONGODB_URI is not set');
+  }
+
+  // Free MongoDB Atlas clusters often get deleted, which used to crash the
+  // server at boot (querySrv ENOTFOUND). Fall back to an embedded MongoDB so
+  // the API still works; data is intentionally ephemeral.
+  console.warn('⚠️  Starting embedded MongoDB (data resets whenever the service restarts)');
+  const { MongoMemoryServer } = await import('mongodb-memory-server');
+  embeddedMongoServer = await MongoMemoryServer.create({
+    binary: { version: process.env.EMBEDDED_MONGO_VERSION || '6.0.14' },
+    instance: { dbName: 'resumerag', storageEngine: 'ephemeralForTest' }
+  });
+  const embeddedUri = embeddedMongoServer.getUri('resumerag');
+  await mongoose.connect(embeddedUri, {
+    maxPoolSize: 5,
+    serverSelectionTimeoutMS: 30000,
+  });
+  console.log('✅ Connected to embedded MongoDB');
 }
 
-console.log('🔌 Connecting to MongoDB...');
-mongoose.connect(MONGODB_URI, {
-  maxPoolSize: 10,
-  serverSelectionTimeoutMS: 5000,
-  socketTimeoutMS: 45000,
-})
-.then(() => {
-  console.log('✅ Connected to MongoDB');
-  
-  // Start server
+startDatabase()
+.then(async () => {
+  await seedDemoUsers();
+
   const server = app.listen(PORT, () => {
     console.log(`🚀 Server running on port ${PORT}`);
     console.log(`🌍 Environment: ${process.env.NODE_ENV || 'development'}`);
@@ -273,24 +320,19 @@ mongoose.connect(MONGODB_URI, {
   });
 
   // Graceful shutdown
-  process.on('SIGTERM', () => {
-    console.log('SIGTERM received, shutting down gracefully');
-    server.close(() => {
-      mongoose.connection.close();
+  const shutdown = () => {
+    console.log('Shutting down gracefully');
+    server.close(async () => {
+      await mongoose.connection.close();
+      if (embeddedMongoServer) await embeddedMongoServer.stop();
       process.exit(0);
     });
-  });
-
-  process.on('SIGINT', () => {
-    console.log('SIGINT received, shutting down gracefully');
-    server.close(() => {
-      mongoose.connection.close();
-      process.exit(0);
-    });
-  });
+  };
+  process.on('SIGTERM', shutdown);
+  process.on('SIGINT', shutdown);
 })
 .catch(err => {
-  console.error('❌ MongoDB connection error:', err);
+  console.error('❌ Startup failed:', err);
   process.exit(1);
 });
 
