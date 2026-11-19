@@ -27,8 +27,8 @@ const LoginPage: React.FC = () => {
   } = useForm<LoginFormData>({
     resolver: zodResolver(loginSchema),
     defaultValues: {
-      email: 'admin@mail.com', // Pre-filled with working credentials
-      password: 'admin123',
+      email: '',
+      password: '',
     },
   });
 
@@ -54,17 +54,6 @@ const LoginPage: React.FC = () => {
           <p className="mt-2 text-center text-sm text-gray-600 dark:text-gray-400">
             Advanced AI-powered resume search and matching
           </p>
-        </div>
-
-        {/* Demo credentials info */}
-        <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-700 rounded-md p-4">
-          <h3 className="text-sm font-medium text-blue-800 dark:text-blue-200 mb-2">
-            Demo Credentials (Pre-filled)
-          </h3>
-          <div className="text-xs text-blue-700 dark:text-blue-300 space-y-1">
-            <p><strong>Demo Login:</strong> admin@mail.com / admin123</p>
-            <p><strong>Note:</strong> Credentials are pre-filled - just click "Sign in"</p>
-          </div>
         </div>
 
         <form className="mt-8 space-y-6" onSubmit={handleSubmit(onSubmit)}>

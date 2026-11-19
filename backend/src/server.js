@@ -75,6 +75,11 @@ app.use(cors({
     if (origin.includes('vercel.app')) {
       return callback(null, true);
     }
+
+    // Allow the Render-hosted copy of the frontend
+    if (origin.endsWith('.onrender.com')) {
+      return callback(null, true);
+    }
     
     // Reject other origins
     callback(new Error('Not allowed by CORS'));
