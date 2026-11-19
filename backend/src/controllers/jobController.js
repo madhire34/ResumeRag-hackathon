@@ -54,6 +54,67 @@ export const createJobValidation = [
     .withMessage('Salary maximum must be a number')
 ];
 
+// Partial-update rules: every field is optional, but validated when present.
+export const updateJobValidation = [
+  body('title')
+    .optional()
+    .trim()
+    .isLength({ min: 3, max: 200 })
+    .withMessage('Title must be between 3 and 200 characters'),
+  body('company')
+    .optional()
+    .trim()
+    .isLength({ min: 2, max: 100 })
+    .withMessage('Company must be between 2 and 100 characters'),
+  body('location')
+    .optional()
+    .trim()
+    .isLength({ min: 2, max: 200 })
+    .withMessage('Location must be between 2 and 200 characters'),
+  body('description')
+    .optional()
+    .trim()
+    .isLength({ min: 10, max: 5000 })
+    .withMessage('Description must be between 10 and 5000 characters'),
+  body('requirements')
+    .optional()
+    .isArray({ min: 1 })
+    .withMessage('Requirements must be an array with at least one item'),
+  body('requirements.*')
+    .optional()
+    .trim()
+    .isLength({ min: 2, max: 200 })
+    .withMessage('Each requirement must be between 2 and 200 characters'),
+  body('experienceLevel')
+    .optional()
+    .isIn(['entry', 'mid', 'senior', 'lead', 'executive'])
+    .withMessage('Experience level must be one of: entry, mid, senior, lead, executive'),
+  body('employmentType')
+    .optional()
+    .isIn(['full-time', 'part-time', 'contract', 'internship', 'temporary'])
+    .withMessage('Employment type must be one of: full-time, part-time, contract, internship, temporary'),
+  body('remoteType')
+    .optional()
+    .isIn(['on-site', 'remote', 'hybrid'])
+    .withMessage('Remote type must be one of: on-site, remote, hybrid'),
+  body('skills')
+    .optional()
+    .isArray()
+    .withMessage('Skills must be an array'),
+  body('status')
+    .optional()
+    .isIn(['active', 'closed', 'draft', 'archived'])
+    .withMessage('Status must be one of: active, closed, draft, archived'),
+  body('salaryRange.min')
+    .optional()
+    .isNumeric()
+    .withMessage('Salary minimum must be a number'),
+  body('salaryRange.max')
+    .optional()
+    .isNumeric()
+    .withMessage('Salary maximum must be a number')
+];
+
 export const listJobsValidation = [
   query('limit')
     .optional()
@@ -409,10 +470,17 @@ export const updateJob = async (req, res) => {
       });
     }
     if (error.name === 'CastError') {
+      if (error.path === '_id') {
+        return errorResponse(res, 400, {
+          code: 'INVALID_ID',
+          field: 'id',
+          message: 'Invalid job ID format'
+        });
+      }
       return errorResponse(res, 400, {
-        code: 'INVALID_ID',
-        field: 'id',
-        message: 'Invalid job ID format'
+        code: 'VALIDATION_ERROR',
+        field: error.path,
+        message: `Invalid value for ${error.path}`
       });
     }
     errorResponse(res, 500, {

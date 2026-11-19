@@ -7,6 +7,7 @@ import {
   updateJob,
   deleteJob,
   createJobValidation,
+  updateJobValidation,
   listJobsValidation,
   matchJobValidation
 } from '../controllers/jobController.js';
@@ -21,7 +22,7 @@ router.use(authenticate);
 router.post('/', requireRecruiter, createJobValidation, createJob);
 router.get('/', listJobsValidation, getJobs);
 router.get('/:id', getJobById);
-router.put('/:id', requireRecruiter, createJobValidation, updateJob);
+router.put('/:id', requireRecruiter, updateJobValidation, updateJob);
 router.delete('/:id', requireRecruiter, deleteJob);
 
 // Job matching route

@@ -5,6 +5,53 @@ import Resume from '../models/Resume.js';
 import { ragService } from '../services/ragService.js';
 import aiService from '../services/aiService.js';
 
+// Split a free-text query into MongoDB-safe keywords for the no-AI fallback.
+function buildKeywordRegexes(query) {
+  return (query || '')
+    .toLowerCase()
+    .split(/[^a-z0-9+#.]+/)
+    .filter(word => word.length > 2)
+    .slice(0, 8)
+    .map(word => new RegExp(word.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i'));
+}
+
+// Keyword search used when no embedding provider (OpenAI/Ollama) is configured,
+// so search still returns real candidates instead of failing.
+async function keywordSearchResumes(query, k, filterCriteria = {}) {
+  const terms = buildKeywordRegexes(query);
+  const base = { ...filterCriteria };
+
+  if (terms.length > 0) {
+    base.$or = [
+      { text: { $in: terms } },
+      { currentPosition: { $in: terms } },
+      { 'personalInfo.name': { $in: terms } },
+      { 'personalInfo.summary': { $in: terms } },
+      { 'extractedData.skills.name': { $in: terms } }
+    ];
+  }
+
+  const docs = await Resume.find(base).limit(Math.max(k * 3, 30)).lean();
+  if (docs.length === 0) return [];
+
+  const score = doc => {
+    if (terms.length === 0) return 0;
+    const haystack = [
+      doc.text || '',
+      doc.currentPosition || '',
+      doc.personalInfo?.name || '',
+      doc.personalInfo?.summary || '',
+      (doc.extractedData?.skills || []).map(s => s.name).join(' ')
+    ].join(' ').toLowerCase();
+    return terms.reduce((hits, re) => hits + (re.test(haystack) ? 1 : 0), 0) / terms.length;
+  };
+
+  return docs
+    .map(doc => ({ ...doc, similarity: score(doc) }))
+    .sort((a, b) => b.similarity - a.similarity)
+    .slice(0, k);
+}
+
 export const askController = {
   // Query resumes using RAG
   async queryResumes(req, res) {
@@ -56,25 +103,24 @@ export const askController = {
       // Generate query embedding
       console.log('🔢 Generating query embedding...');
       const queryEmbedding = await aiService.generateEmbedding(query);
+      const useKeywordFallback = !queryEmbedding || queryEmbedding.length === 0;
 
-      if (!queryEmbedding || queryEmbedding.length === 0) {
-        console.error('❌ Failed to generate embedding - AI service issue');
-        return errorResponse(res, 503, {
-          code: 'OPENAI_ERROR',
-          message: 'AI service is temporarily unavailable. Please check OpenAI API key and try again.'
-        });
+      let similarResumes;
+      if (useKeywordFallback) {
+        console.warn('⚠️  No embedding provider available - falling back to keyword search');
+        similarResumes = await keywordSearchResumes(query, k, filterCriteria);
+      } else {
+        console.log(`✅ Generated embedding with ${queryEmbedding.length} dimensions`);
+
+        // Find similar resumes using vector search
+        console.log('🔍 Searching for similar resumes...');
+        similarResumes = await ragService.findSimilarResumes(
+          queryEmbedding,
+          k,
+          filterCriteria,
+          userRole
+        );
       }
-
-      console.log(`✅ Generated embedding with ${queryEmbedding.length} dimensions`);
-
-      // Find similar resumes using vector search
-      console.log('🔍 Searching for similar resumes...');
-      const similarResumes = await ragService.findSimilarResumes(
-        queryEmbedding,
-        k,
-        filterCriteria,
-        userRole
-      );
 
       console.log(`📊 Found ${similarResumes.length} similar resumes`);
 
@@ -106,8 +152,21 @@ export const askController = {
         }
       }
 
-      // Generate AI answer using RAG
-      const ragAnswer = await ragService.generateAnswer(query, similarResumes, jobContext);
+      // Generate AI answer using RAG (or a plain summary when AI is offline)
+      let ragAnswer;
+      if (useKeywordFallback) {
+        const names = similarResumes
+          .map(resume => (userRole === 'recruiter' || userRole === 'admin')
+            ? resume.personalInfo?.name
+            : null)
+          .filter(Boolean);
+        ragAnswer = similarResumes.length === 0
+          ? `No resumes matched "${query}". Try different keywords, or upload more resumes.`
+          : `Keyword search (AI service is offline) found ${similarResumes.length} matching resume(s) for "${query}".`
+            + (names.length ? ` Top matches: ${names.join(', ')}.` : '');
+      } else {
+        ragAnswer = await ragService.generateAnswer(query, similarResumes, jobContext);
+      }
 
       // Prepare evidence snippets
       const evidence = similarResumes.map((resume, index) => ({
@@ -133,8 +192,8 @@ export const askController = {
         filters: filters,
         metadata: {
           processingTime: Date.now() - req.startTime,
-          model: 'gpt-4',
-          embeddingModel: 'text-embedding-ada-002'
+          model: useKeywordFallback ? 'keyword-fallback' : 'gpt-4',
+          embeddingModel: useKeywordFallback ? null : 'text-embedding-ada-002'
         }
       }, 'Query processed successfully');
 
@@ -169,14 +228,17 @@ export const askController = {
 
       // Generate query embedding
       const queryEmbedding = await aiService.generateEmbedding(query);
+      const useKeywordFallback = !queryEmbedding || queryEmbedding.length === 0;
 
       // Find similar resumes
-      const similarResumes = await ragService.findSimilarResumes(
-        queryEmbedding,
-        k,
-        { status: 'completed' },
-        userRole
-      );
+      const similarResumes = useKeywordFallback
+        ? await keywordSearchResumes(query, k, { status: 'completed' })
+        : await ragService.findSimilarResumes(
+            queryEmbedding,
+            k,
+            { status: 'completed' },
+            userRole
+          );
 
       const results = similarResumes.map((resume, index) => ({
         id: resume._id,
@@ -196,8 +258,8 @@ export const askController = {
         results,
         totalResults: results.length,
         metadata: {
-          searchType: 'semantic',
-          embeddingModel: 'text-embedding-ada-002'
+          searchType: useKeywordFallback ? 'keyword' : 'semantic',
+          embeddingModel: useKeywordFallback ? null : 'text-embedding-ada-002'
         }
       }, 'Semantic search completed');
 
