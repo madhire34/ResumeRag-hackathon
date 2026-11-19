@@ -173,7 +173,7 @@ export const getProfile = async (req, res) => {
       success: true,
       message: 'Profile retrieved successfully',
       ...user,
-      data: { user }
+      data: { ...user, user }
     });
   } catch (error) {
     console.error('Profile error:', error);
@@ -219,7 +219,7 @@ export const updateProfile = async (req, res) => {
       success: true,
       message: 'Profile updated successfully',
       ...userJson,
-      data: { user: userJson }
+      data: { ...userJson, user: userJson }
     });
   } catch (error) {
     console.error('Profile update error:', error);
