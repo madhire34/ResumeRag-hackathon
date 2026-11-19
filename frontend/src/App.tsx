@@ -32,9 +32,9 @@ const ProtectedRoute: React.FC<{ children: React.ReactNode; adminOnly?: boolean;
   adminOnly = false,
   recruiterOnly = false 
 }) => {
-  const { isAuthenticated, isLoading, user } = useAuth();
+  const { isAuthenticated, isInitialized, user } = useAuth();
 
-  if (isLoading) {
+  if (!isInitialized) {
     return <LoadingSpinner />;
   }
 
@@ -55,9 +55,9 @@ const ProtectedRoute: React.FC<{ children: React.ReactNode; adminOnly?: boolean;
 
 // Public Route component (redirect if authenticated)
 const PublicRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const { isAuthenticated, isLoading } = useAuth();
+  const { isAuthenticated, isInitialized } = useAuth();
 
-  if (isLoading) {
+  if (!isInitialized) {
     return <LoadingSpinner />;
   }
 

@@ -6,6 +6,7 @@ interface AuthState {
   user: User | null;
   token: string | null;
   isLoading: boolean;
+  isInitialized: boolean;
   isAuthenticated: boolean;
 }
 
@@ -20,6 +21,7 @@ const initialState: AuthState = {
   user: null,
   token: null,
   isLoading: true,
+  isInitialized: false,
   isAuthenticated: false,
 };
 
@@ -33,6 +35,7 @@ const authReducer = (state: AuthState, action: AuthAction): AuthState => {
         user: action.payload.user,
         token: action.payload.token,
         isLoading: false,
+        isInitialized: true,
         isAuthenticated: true,
       };
     case 'AUTH_FAILURE':
@@ -41,6 +44,7 @@ const authReducer = (state: AuthState, action: AuthAction): AuthState => {
         user: null,
         token: null,
         isLoading: false,
+        isInitialized: true,
         isAuthenticated: false,
       };
     case 'LOGOUT':
@@ -49,6 +53,7 @@ const authReducer = (state: AuthState, action: AuthAction): AuthState => {
         user: null,
         token: null,
         isLoading: false,
+        isInitialized: true,
         isAuthenticated: false,
       };
     case 'UPDATE_USER':

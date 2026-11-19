@@ -52,6 +52,11 @@ const allowedOrigins = process.env.NODE_ENV === 'production'
   ? [process.env.FRONTEND_URL].filter(Boolean)
   : ['http://localhost:3000', 'http://localhost:5173'];
 
+// Allow local development against the deployed API too
+['http://localhost:3000', 'http://localhost:5173'].forEach(origin => {
+  if (!allowedOrigins.includes(origin)) allowedOrigins.push(origin);
+});
+
 // Add default production frontend if FRONTEND_URL is not set
 if (process.env.NODE_ENV === 'production' && allowedOrigins.length === 0) {
   allowedOrigins.push('https://resume-rag-hackathon.vercel.app');
