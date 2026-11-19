@@ -19,6 +19,7 @@ const LoginPage: React.FC = () => {
   const navigate = useNavigate();
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
+  const [demoLoading, setDemoLoading] = useState(false);
 
   const {
     register,
@@ -48,6 +49,7 @@ const LoginPage: React.FC = () => {
 
   const useDemoAccount = async () => {
     setError('');
+    setDemoLoading(true);
     try {
       await login('recruiter@resumerag.com', 'test123');
       navigate('/dashboard');
@@ -55,9 +57,11 @@ const LoginPage: React.FC = () => {
       const message = err?.message || 'Login failed';
       setError(
         /timeout/i.test(message)
-          ? 'The demo server is waking up from sleep. Give it 30 seconds and try again.'
+          ? 'The demo server is still waking up. Press the button again in a few seconds — the second attempt is usually quick.'
           : message
       );
+    } finally {
+      setDemoLoading(false);
     }
   };
 
@@ -172,11 +176,17 @@ const LoginPage: React.FC = () => {
             <button
               type="button"
               onClick={useDemoAccount}
-              disabled={isLoading}
+              disabled={isLoading || demoLoading}
               className="mt-3 w-full inline-flex justify-center items-center py-2 px-3 border border-primary-600 text-sm font-medium rounded-md text-primary-700 dark:text-primary-300 bg-white dark:bg-gray-800 hover:bg-primary-100 dark:hover:bg-primary-900/40 disabled:opacity-50 transition-colors duration-150"
             >
-              Enter the demo as a recruiter
+              {demoLoading ? 'Waking the demo server…' : 'Enter the demo as a recruiter'}
             </button>
+            {demoLoading && (
+              <p className="mt-2 text-xs text-gray-500 dark:text-gray-400">
+                First visit of the day can take up to a minute. We retry on our own, so you can
+                leave this tab open.
+              </p>
+            )}
           </div>
         </form>
 

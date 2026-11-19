@@ -125,7 +125,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const login = async (email: string, password: string): Promise<void> => {
     try {
       dispatch({ type: 'AUTH_START' });
-      const response: AuthResponse = await authAPI.login(email, password);
+      const response: AuthResponse = await authAPI.loginWithRetry(email, password);
       
       // Store in localStorage
       localStorage.setItem('authToken', response.data.token);

@@ -69,11 +69,42 @@ export const handleApiError = (error: any): APIError => {
   };
 };
 
+// The backend sleeps on the free tier, so the first request after a while can
+// time out or hit a gateway error while the instance boots. Those are worth a
+// retry; a wrong password (401) or a validation error is not.
+const isColdStartError = (error: any): boolean => {
+  if (error?.code === 'ECONNABORTED' || error?.code === 'ERR_NETWORK') return true;
+  const status = error?.response?.status;
+  return !status || status === 502 || status === 503 || status === 504;
+};
+
+const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
 // Auth API
 export const authAPI = {
   login: async (email: string, password: string): Promise<AuthResponse> => {
     const response = await api.post<AuthResponse>('/auth/login', { email, password });
     return response.data;
+  },
+
+  // Retries a timed-out login twice; by the second attempt the instance is
+  // usually awake and answers in under a second.
+  loginWithRetry: async (
+    email: string,
+    password: string,
+    attempts = 3
+  ): Promise<AuthResponse> => {
+    let lastError: any;
+    for (let attempt = 0; attempt < attempts; attempt += 1) {
+      try {
+        return await authAPI.login(email, password);
+      } catch (error) {
+        lastError = error;
+        if (attempt === attempts - 1 || !isColdStartError(error)) throw error;
+        await sleep(1500 * (attempt + 1));
+      }
+    }
+    throw lastError;
   },
 
   register: async (userData: {
