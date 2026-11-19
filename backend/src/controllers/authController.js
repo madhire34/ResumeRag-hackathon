@@ -165,9 +165,16 @@ export const login = async (req, res) => {
 
 export const getProfile = async (req, res) => {
   try {
-    successResponse(res, 200, {
-      user: req.user.toJSON()
-    }, 'Profile retrieved successfully');
+    const user = req.user.toJSON();
+    // Also expose the user fields at the top level: older builds of the web
+    // client store the whole response body as the user after re-verifying the
+    // session, so this keeps their name/role intact after a page reload.
+    res.status(200).json({
+      success: true,
+      message: 'Profile retrieved successfully',
+      ...user,
+      data: { user }
+    });
   } catch (error) {
     console.error('Profile error:', error);
     errorResponse(res, 500, {
@@ -206,9 +213,14 @@ export const updateProfile = async (req, res) => {
       { new: true, runValidators: true }
     );
 
-    successResponse(res, 200, {
-      user: user.toJSON()
-    }, 'Profile updated successfully');
+    const userJson = user.toJSON();
+    // Same compatibility shim as getProfile (see comment there).
+    res.status(200).json({
+      success: true,
+      message: 'Profile updated successfully',
+      ...userJson,
+      data: { user: userJson }
+    });
   } catch (error) {
     console.error('Profile update error:', error);
     if (error.name === 'ValidationError') {
