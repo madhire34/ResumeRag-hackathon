@@ -115,7 +115,6 @@ const RegisterPage: React.FC = () => {
               {...register('name')}
               type="text"
               autoComplete="name"
-              placeholder="Jane Doe"
               className="mt-1 appearance-none relative block w-full px-3 py-2 border border-gray-300 dark:border-gray-600 placeholder-gray-500 dark:placeholder-gray-400 text-gray-900 dark:text-white rounded-md focus:outline-none focus:ring-primary-500 focus:border-primary-500 sm:text-sm bg-white dark:bg-gray-700"
             />
             {errors.name && (
